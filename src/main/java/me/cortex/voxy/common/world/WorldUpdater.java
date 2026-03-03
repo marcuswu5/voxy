@@ -1,6 +1,7 @@
 package me.cortex.voxy.common.world;
 
 import me.cortex.voxy.common.voxelization.VoxelizedSection;
+import me.cortex.voxy.common.voxelization.WorldConversionFactory;
 import me.cortex.voxy.common.world.other.Mapper;
 import me.cortex.voxy.commonImpl.VoxyCommon;
 
@@ -19,6 +20,14 @@ public class WorldUpdater {
         }
 
         if (!into.isLive) throw new IllegalStateException("World is not live");
+        if (into.isLodCompressionEnabled()) {
+            if (into.hasSky()) {
+                cullToSkyExposed(section, into.getMapper());
+            } else {
+                cullToFaceExposed(section, into.getMapper());
+            }
+            WorldConversionFactory.mipSection(section, into.getMapper());
+        }
         boolean shouldCheckEmptiness = false;
         WorldSection previousSection = null;
         for (int lvl = 0; lvl <= MAX_LOD_LAYER; lvl++) {
@@ -156,5 +165,77 @@ public class WorldUpdater {
         status |= didStateChange?1:0;
         status |= Integer.toUnsignedLong(airCount)<<1;//VERY VERY VERY IMPORTANT NOTE: IS 13 BITS BIG NOT 12 BITS (since it can be 4096 which is 6 bits large)
         return status;
+    }
+
+    /**
+     * Sky-exposed culling: replace non-sky-exposed blocks with air in the level-0 section.
+     * Level-0 layout: index i = (y<<8)|(z<<4)|x. "Above" = same x,z, higher y.
+     * Opaque = mapper.getBlockStateOpacity(id) > 0. Water is treated as surface (opaque for "above" check)
+     * so that water-at-top-of-column is kept and water surface is preserved (MVP edge case).
+     * Updates section.lvl0NonAirCount.
+     */
+    private static void cullToSkyExposed(VoxelizedSection section, Mapper mapper) {
+        final long[] vdat = section.section;
+        int nonAirCount = 0;
+        for (int i = 0; i <= 0xFFF; i++) {
+            int x = i & 0xF;
+            int z = (i >> 4) & 0xF;
+            int y = (i >> 8) & 0xF;
+            boolean skyExposed = true;
+            for (int yy = y + 1; yy < 16; yy++) {
+                int j = (yy << 8) | (z << 4) | x;
+                long id = vdat[j];
+                // Treat water as surface block: blocks below water are not sky-exposed; water surface is kept
+                if (mapper.getBlockStateOpacity(id) > 0 || mapper.isWater(id)) {
+                    skyExposed = false;
+                    break;
+                }
+            }
+            if (!skyExposed) {
+                vdat[i] = Mapper.AIR;
+            } else if (!Mapper.isAir(vdat[i])) {
+                nonAirCount++;
+            }
+        }
+        section.lvl0NonAirCount = nonAirCount;
+    }
+
+    /**
+     * Face-exposed culling: keep block only if at least one of the 6 neighbours is air or non-opaque.
+     * Used for dimensions without sky (Nether, End) so terrain is not over-culled.
+     * Section boundaries: neighbours outside section are treated as transparent (block is kept).
+     * Level-0 layout: index i = (y<<8)|(z<<4)|x.
+     */
+    private static void cullToFaceExposed(VoxelizedSection section, Mapper mapper) {
+        final long[] vdat = section.section;
+        int nonAirCount = 0;
+        for (int i = 0; i <= 0xFFF; i++) {
+            int x = i & 0xF;
+            int z = (i >> 4) & 0xF;
+            int y = (i >> 8) & 0xF;
+            boolean faceExposed = false;
+            // +x, -x, +y, -y, +z, -z
+            int[][] deltas = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
+            for (int[] d : deltas) {
+                int nx = x + d[0], ny = y + d[1], nz = z + d[2];
+                if (nx < 0 || nx > 15 || ny < 0 || ny > 15 || nz < 0 || nz > 15) {
+                    // Out-of-section: treat as transparent so we keep the block (per existing conventions)
+                    faceExposed = true;
+                    break;
+                }
+                int j = (ny << 8) | (nz << 4) | nx;
+                long nid = vdat[j];
+                if (Mapper.isAir(nid) || mapper.getBlockStateOpacity(nid) == 0) {
+                    faceExposed = true;
+                    break;
+                }
+            }
+            if (!faceExposed) {
+                vdat[i] = Mapper.AIR;
+            } else if (!Mapper.isAir(vdat[i])) {
+                nonAirCount++;
+            }
+        }
+        section.lvl0NonAirCount = nonAirCount;
     }
 }

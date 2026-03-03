@@ -22,6 +22,7 @@ This plan turns the LOD compression MVP (surface-only compression to reduce memo
 |----|---------|---------|
 | feature-01 | Sky-exposed surface culling + config flag | Store only blocks with no opaque block above; config toggle to enable/disable. |
 | feature-02 | Dimension-aware compression | Nether/End use face-exposed culling where sky is meaningless; overworld keeps sky-exposed. |
+| feature-05 | Wood log + double layer + 5-face | Wood logs culled as air; sky-exposed requires two non-opaque above; 5-face predicate (exclude -Y) for face-exposed. |
 | feature-03 | LOD-level-aware compression (Option 4) | Level 0: face-exposed; levels 1–2: sky-exposed; level 3+: top-surface only. |
 | feature-04 | Optional RLE storage layer (Option 5) | Run-length encode section data at serialize/deserialize for additional disk savings. |
 
@@ -33,7 +34,8 @@ This plan turns the LOD compression MVP (surface-only compression to reduce memo
 |------------|------------|---------------------------|
 | feature-01 | None | — |
 | feature-02 | feature-01 | — |
-| feature-03 | feature-01, feature-02 | — |
+| feature-05 | feature-01, feature-02 | — |
+| feature-03 | feature-01, feature-02, feature-05 | — |
 | feature-04 | feature-01 | feature-02, feature-03 (only touches storage layer) |
 
 **Diagram (dependency and waves):**
@@ -48,13 +50,18 @@ flowchart TB
     F04[feature-04 RLE storage]
   end
   subgraph wave3 [Wave 3]
+    F05[feature-05 Wood log + double layer + 5-face]
+  end
+  subgraph wave4 [Wave 4]
     F03[feature-03 LOD-level-aware]
   end
   wave1 --> wave2
   wave2 --> wave3
+  wave3 --> wave4
   F01 --> F02
   F01 --> F04
-  F02 --> F03
+  F02 --> F05
+  F05 --> F03
 ```
 
 ---

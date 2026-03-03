@@ -41,17 +41,34 @@ public class WorldEngine {
 
     public Mapper getMapper() {return this.mapper;}
     public boolean isLive() {return this.isLive;}
+    /** When true, only sky-exposed (or face-exposed for no-sky dimensions) blocks are written into LOD. */
+    public boolean isLodCompressionEnabled() {return this.lodCompressionEnabled;}
+
+    /** When true, dimension has sky (Overworld) → use sky-exposed culling. When false (Nether/End) → use face-exposed culling. */
+    public boolean hasSky() {return this.hasSky;}
 
     public final @Nullable VoxyInstance instanceIn;
+    private final boolean lodCompressionEnabled;
+    private final boolean hasSky;
     private final AtomicInteger refCount = new AtomicInteger();
     volatile long lastActiveTime = System.currentTimeMillis();//Time in millis the world was last "active" i.e. had a total ref count or active section count of != 0
 
     public WorldEngine(SectionStorage storage) {
-        this(storage, null);
+        this(storage, null, false, true);
     }
 
     public WorldEngine(SectionStorage storage, @Nullable VoxyInstance instance) {
+        this(storage, instance, false, true);
+    }
+
+    public WorldEngine(SectionStorage storage, @Nullable VoxyInstance instance, boolean lodCompressionEnabled) {
+        this(storage, instance, lodCompressionEnabled, true);
+    }
+
+    public WorldEngine(SectionStorage storage, @Nullable VoxyInstance instance, boolean lodCompressionEnabled, boolean hasSky) {
         this.instanceIn = instance;
+        this.lodCompressionEnabled = lodCompressionEnabled;
+        this.hasSky = hasSky;
 
         int cacheSize = 1024;
         if (Runtime.getRuntime().maxMemory()>=(1L<<32)-(200L<<20)) {

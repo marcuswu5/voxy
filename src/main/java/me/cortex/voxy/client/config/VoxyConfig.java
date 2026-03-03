@@ -31,6 +31,8 @@ public class VoxyConfig {
     public float subDivisionSize = 64;
     public boolean useEnvironmentalFog = true;
     public boolean dontUseSodiumBuilderThreads = false;
+    /** When true, only sky-exposed blocks are written into LOD (reduces memory/storage). Default off. */
+    public boolean lodCompression = false;
 
     private static VoxyConfig loadOrCreate() {
         if (VoxyCommon.isAvailable()) {

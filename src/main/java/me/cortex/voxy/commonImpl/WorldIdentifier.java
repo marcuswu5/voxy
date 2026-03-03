@@ -85,6 +85,18 @@ public class WorldIdentifier {
         return instance.getNullable(this);
     }
 
+    /**
+     * True if this dimension has sky (Overworld). When false, LOD compression uses face-exposed
+     * culling instead of sky-exposed (e.g. Nether, End).
+     */
+    public boolean hasSky() {
+        if (this.dimension == null || this.dimension.equals(NULL_DIM_KEY)) {
+            return true; // default to overworld-like
+        }
+        String path = this.dimension.identifier().getPath();
+        return "overworld".equals(path);
+    }
+
     public static WorldIdentifier of(Level level) {
         //Gets or makes an identifier for world
         if (level == null) {

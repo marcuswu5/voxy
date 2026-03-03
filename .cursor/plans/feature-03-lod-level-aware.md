@@ -1,5 +1,5 @@
 ---
-Depends on: feature-01-sky-exposed-culling, feature-02-dimension-aware
+Depends on: feature-01-sky-exposed-culling, feature-02-dimension-aware, feature-05-wood-log-double-layer-5face
 Can run in parallel with: None
 ---
 
@@ -21,7 +21,7 @@ Apply different compression strategies per LOD level: level 0 (closest) uses fac
 
 1. Ensure LOD level is available in the compression call (e.g. `worldSection.lvl` or passed parameter). Add a single entry point that takes (level, dimension, section data) and returns or writes culled result.
 2. Implement top-surface-only path: for each XZ column, iterate Y from top to bottom; keep the first non-air block, mark or write air for the rest. Integrate with existing section indexing.
-3. Strategy selection: level 0 → face-exposed; level 1 or 2 → sky-exposed; level 3+ → top-surface only. For Nether/End, either keep dimension override (face-exposed for all levels) or apply only at level 0; document choice.
+3. Strategy selection: level 0 → face-exposed; level 1 or 2 → sky-exposed; level 3+ → top-surface only. For Nether/End, either keep dimension override (face-exposed for all levels) or apply only at level 0; document choice. Face-exposed strategy at level 0 may use the 5-face checker from feature-05 (excludes -Y) where desired.
 4. Add config knobs if needed (e.g. “max level for face-exposed”, “max level for sky-exposed”) for tuning without code change.
 5. Run Spark and visual checks at multiple LOD levels; confirm close LODs retain detail and far LODs are heavily compressed.
 

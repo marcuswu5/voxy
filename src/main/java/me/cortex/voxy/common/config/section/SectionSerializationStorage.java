@@ -17,8 +17,15 @@ import java.util.function.LongConsumer;
 
 public class SectionSerializationStorage extends SectionStorage {
     private final StorageBackend backend;
+    private final boolean useRleForLodStorage;
+
     public SectionSerializationStorage(StorageBackend storageBackend) {
+        this(storageBackend, false);
+    }
+
+    public SectionSerializationStorage(StorageBackend storageBackend, boolean useRleForLodStorage) {
         this.backend = storageBackend;
+        this.useRleForLodStorage = useRleForLodStorage;
     }
 
     private static final ThreadLocalMemoryBuffer MEMORY_CACHE = new ThreadLocalMemoryBuffer(SaveLoadSystem.BIGGEST_SERIALIZED_SECTION_SIZE + 1024);
@@ -46,7 +53,7 @@ public class SectionSerializationStorage extends SectionStorage {
 
     @Override
     public void saveSection(WorldSection section) {
-        var saveData = SaveLoadSystem3.serialize(section);
+        var saveData = SaveLoadSystem3.serialize(section, this.useRleForLodStorage);
         this.backend.setSectionData(section.key, saveData);
         //Note that savedData isnt freed (the save system uses a cache)
     }
@@ -78,10 +85,12 @@ public class SectionSerializationStorage extends SectionStorage {
 
     public static class Config extends SectionStorageConfig {
         public StorageConfig storage;
+        /** When true, new saves use RLE for section block data. Default off. Existing RLE sections on disk remain readable when disabled. */
+        public boolean useRleForLodStorage = false;
 
         @Override
         public SectionStorage build(ConfigBuildCtx ctx) {
-            return new SectionSerializationStorage(this.storage.build(ctx));
+            return new SectionSerializationStorage(this.storage.build(ctx), this.useRleForLodStorage);
         }
 
         public static String getConfigTypeName() {

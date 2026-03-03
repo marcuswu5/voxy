@@ -165,6 +165,9 @@ public abstract class VoxyInstance {
 
     protected abstract SectionStorage createStorage(WorldIdentifier identifier);
 
+    /** Whether LOD compression (sky-exposed culling) is enabled. Client reads from voxy-config.json. */
+    protected abstract boolean isLodCompressionEnabled();
+
     private WorldEngine createWorld(WorldIdentifier identifier) {
         if (!this.isRunning) {
             throw new IllegalStateException("Cannot create world while not running");
@@ -173,7 +176,9 @@ public abstract class VoxyInstance {
             throw new IllegalStateException("Existing world with identifier");
         }
         Logger.info("Creating new world engine: " + identifier.getLongHash() + "@" + System.identityHashCode(this));
-        var world = new WorldEngine(this.createStorage(identifier), this);
+        boolean lodCompression = this.isLodCompressionEnabled();
+        boolean hasSky = identifier.hasSky();
+        var world = new WorldEngine(this.createStorage(identifier), this, lodCompression, hasSky);
         world.setSaveCallback(this.savingService::enqueueSave);
         this.activeWorlds.put(identifier, world);
         return world;

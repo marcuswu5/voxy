@@ -75,6 +75,11 @@ public class VoxyClientInstance extends VoxyInstance {
     }
 
     @Override
+    protected boolean isLodCompressionEnabled() {
+        return VoxyConfig.CONFIG.lodCompression;
+    }
+
+    @Override
     public boolean isIngestEnabled(WorldIdentifier worldId) {
         return (!this.noIngestOverride) && VoxyConfig.CONFIG.ingestEnabled;
     }

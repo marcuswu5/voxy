@@ -16,6 +16,7 @@ import net.minecraft.util.datafix.fixes.References;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import org.lwjgl.system.MemoryUtil;
@@ -257,6 +258,16 @@ public class Mapper {
 
     public int getBlockStateOpacity(int blockId) {
         return this.blockId2stateEntry.get(blockId).opacity;
+    }
+
+    /** True if the block is a fluid (e.g. water). Used so water can be treated as surface for sky-exposed culling. */
+    public boolean isWater(long mappingId) {
+        if (isAir(mappingId)) return false;
+        return isWater(getBlockId(mappingId));
+    }
+
+    public boolean isWater(int blockId) {
+        return this.blockId2stateEntry.get(blockId).state.getBlock() instanceof LiquidBlock;
     }
 
     public int getIdForBiome(Holder<Biome> biome) {
