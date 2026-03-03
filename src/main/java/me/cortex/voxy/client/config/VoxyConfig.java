@@ -33,6 +33,8 @@ public class VoxyConfig {
     public boolean dontUseSodiumBuilderThreads = false;
     /** When true, only sky-exposed blocks are written into LOD (reduces memory/storage). Default off. */
     public boolean lodCompression = false;
+    /** When true, new saves use RLE for section block data. Existing RLE sections remain readable when disabled. */
+    public boolean useRleForLodStorage = true;
 
     private static VoxyConfig loadOrCreate() {
         if (VoxyCommon.isAvailable()) {

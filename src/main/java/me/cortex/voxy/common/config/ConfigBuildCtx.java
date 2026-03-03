@@ -11,6 +11,8 @@ public class ConfigBuildCtx {
     public static final String BASE_SAVE_PATH = "{base_save_path}";
     public static final String WORLD_IDENTIFIER = "{world_identifier}";
     public static final String DEFAULT_STORAGE_PATH = BASE_SAVE_PATH+"/"+WORLD_IDENTIFIER+"/storage/";
+    /** When set (e.g. from voxy-config.json), overrides SectionSerializationStorage useRleForLodStorage. Value "true" or "false". */
+    public static final String USE_RLE_FOR_LOD_STORAGE = "{use_rle_for_lod_storage}";
 
 
     private final Map<String, String> properties = new HashMap<>();
@@ -28,6 +30,13 @@ public class ConfigBuildCtx {
         }
         this.properties.put(property, value);
         return this;
+    }
+
+    /**
+     * Returns a builder property value, or null if not set.
+     */
+    public String getProperty(String property) {
+        return this.properties.get(property);
     }
 
     /**

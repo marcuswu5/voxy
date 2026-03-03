@@ -85,12 +85,15 @@ public class SectionSerializationStorage extends SectionStorage {
 
     public static class Config extends SectionStorageConfig {
         public StorageConfig storage;
-        /** When true, new saves use RLE for section block data. Default off. Existing RLE sections on disk remain readable when disabled. */
-        public boolean useRleForLodStorage = false;
 
         @Override
         public SectionStorage build(ConfigBuildCtx ctx) {
-            return new SectionSerializationStorage(this.storage.build(ctx), this.useRleForLodStorage);
+            boolean useRle = true;
+            String override = ctx.getProperty(ConfigBuildCtx.USE_RLE_FOR_LOD_STORAGE);
+            if (override != null) {
+                useRle = Boolean.parseBoolean(override);
+            }
+            return new SectionSerializationStorage(this.storage.build(ctx), useRle);
         }
 
         public static String getConfigTypeName() {

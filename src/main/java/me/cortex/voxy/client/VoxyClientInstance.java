@@ -66,6 +66,7 @@ public class VoxyClientInstance extends VoxyInstance {
         var ctx = new ConfigBuildCtx();
         ctx.setProperty(ConfigBuildCtx.BASE_SAVE_PATH, this.basePath.toString());
         ctx.setProperty(ConfigBuildCtx.WORLD_IDENTIFIER, identifier.getWorldId());
+        ctx.setProperty(ConfigBuildCtx.USE_RLE_FOR_LOD_STORAGE, String.valueOf(VoxyConfig.CONFIG.useRleForLodStorage));
         ctx.pushPath(ConfigBuildCtx.DEFAULT_STORAGE_PATH);
         return this.storageConfig.build(ctx);
     }
