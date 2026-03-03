@@ -153,6 +153,7 @@ dependencies {
     modCompileOnly("maven.modrinth:vivecraft:1.21.9-1.3.2-fabric")
 
     modCompileOnly("maven.modrinth:flashback:rNCr1Rbs")
+    modLocalRuntime("maven.modrinth:voxy-worldgen:1.1.7")
 }
 
 
