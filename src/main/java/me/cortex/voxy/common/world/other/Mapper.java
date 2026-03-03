@@ -282,6 +282,17 @@ public class Mapper {
         return this.blockId2stateEntry.get(blockId).state.is(BlockTags.LOGS);
     }
 
+    /** True if the block is leaves (BlockTags.LEAVES). Leaves are never culled so they are always rendered. */
+    public boolean isLeaves(long mappingId) {
+        if (Mapper.isAir(mappingId)) return false;
+        return isLeaves(getBlockId(mappingId));
+    }
+
+    public boolean isLeaves(int blockId) {
+        if (blockId == 0) return false;
+        return this.blockId2stateEntry.get(blockId).state.is(BlockTags.LEAVES);
+    }
+
     public int getIdForBiome(Holder<Biome> biome) {
         String biomeId = biome.unwrapKey().get().identifier().toString();
         var entry = this.biome2biomeEntry.get(biomeId);

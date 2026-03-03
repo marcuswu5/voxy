@@ -1,7 +1,7 @@
 package me.cortex.voxy.common.voxelization;
 
 
-import java.util.Arrays;
+import me.cortex.voxy.common.util.VectorSupport;
 
 //16x16x16 block section
 public class VoxelizedSection {
@@ -51,7 +51,7 @@ public class VoxelizedSection {
 
     public VoxelizedSection zero() {
         this.lvl0NonAirCount = 0;
-        Arrays.fill(this.section, 0);
+        VectorSupport.fillZero(this.section, 0, this.section.length);
         return this;
     }
 }

@@ -1,5 +1,7 @@
 package me.cortex.voxy.common.world;
 
+import me.cortex.voxy.common.util.Lvl0InsertStrategy;
+import me.cortex.voxy.common.util.VectorSupport;
 import me.cortex.voxy.common.voxelization.VoxelizedSection;
 import me.cortex.voxy.common.voxelization.WorldConversionFactory;
 import me.cortex.voxy.common.world.other.Mapper;
@@ -120,27 +122,10 @@ public class WorldUpdater {
             if (lvl == 0) {
                 final int secMsk = 0b1100|(0xf << 5) | (0xf << 10);
                 final int iSecMsk1 = (~secMsk) + 1;
-
-                int secIdx = 0;
-
-                //TODO rotate the loop parralelization
-                // i.e. instead of doing 4 consecutive blocks, which would all be in the same cache line
-                // do 4 seperate rows so they are in different cache lines, should allow
-                // more instruction pipelining (in theory)
-                for (int i = 0; i <= 0xFFF; i+=4) {
-                    int cSecIdx = secIdx + baseSec;
-                    secIdx = (secIdx + iSecMsk1) & secMsk;
-
-                    long oldId0 = secD[cSecIdx+0]; secD[cSecIdx+0] = vdat[i+0];
-                    long oldId1 = secD[cSecIdx+1]; secD[cSecIdx+1] = vdat[i+1];
-                    long oldId2 = secD[cSecIdx+2]; secD[cSecIdx+2] = vdat[i+2];
-                    long oldId3 = secD[cSecIdx+3]; secD[cSecIdx+3] = vdat[i+3];
-
-                    airCount += Mapper.isAir(oldId0)?1:0; didStateChange |= vdat[i+0] != oldId0;
-                    airCount += Mapper.isAir(oldId1)?1:0; didStateChange |= vdat[i+1] != oldId1;
-                    airCount += Mapper.isAir(oldId2)?1:0; didStateChange |= vdat[i+2] != oldId2;
-                    airCount += Mapper.isAir(oldId3)?1:0; didStateChange |= vdat[i+3] != oldId3;
-                }
+                int[] result = new int[2];
+                VectorSupport.getLvl0InsertStrategy().processLvl0(vdat, secD, baseSec, secMsk, iSecMsk1, result);
+                airCount = result[0];
+                didStateChange = result[1] != 0;
             } else {
                 int baseVIdx = VoxelizedSection.getBaseIndexForLevel(lvl);
 
@@ -171,7 +156,7 @@ public class WorldUpdater {
      * Sky-exposed culling: replace non-sky-exposed blocks with air in the level-0 section.
      * A block at y is kept iff at least one of y+1 or y+2 is non-opaque (so the surface and the block below it are kept).
      * If y+1 >= 16 the block is culled (nothing above). Implemented column-wise.
-     * Logs are never culled. Water is treated as surface (opaque for "above" check). Updates section.lvl0NonAirCount.
+     * Logs and leaves are never culled (always rendered). Water is treated as surface (opaque for "above" check). Updates section.lvl0NonAirCount.
      */
     private static void cullToSkyExposed(VoxelizedSection section, Mapper mapper) {
         final long[] vdat = section.section;
@@ -187,11 +172,20 @@ public class WorldUpdater {
                 for (int y = 0; y < 16; y++) {
                     int i = (y << 8) | (z << 4) | x;
                     long id = vdat[i];
-                    if (mapper.isLog(id)) {
+                    if (mapper.isLog(id) || mapper.isLeaves(id)) {
                         nonAirCount++;
                         continue;
                     }
-                    boolean skyExposed = (y + 1 < 16 && nonOpaqueAbove[y + 1]) || (y + 2 < 16 && nonOpaqueAbove[y + 2]);
+                    // FIX: If we are at the top of the section, assume there is sky above 
+                    // unless we can prove there is an opaque block in this section.
+                    boolean skyExposed;
+                    if (y == 15) {
+                        skyExposed = true; // Assume sky is above the section boundary
+                    } else if (y == 14) {
+                        skyExposed = nonOpaqueAbove[15]; // Check the one block we can see, otherwise assume true
+                    } else {
+                        skyExposed = nonOpaqueAbove[y + 1] || nonOpaqueAbove[y + 2];
+                    }
                     if (!skyExposed) {
                         vdat[i] = Mapper.AIR;
                     } else if (!Mapper.isAir(id)) {
@@ -205,7 +199,7 @@ public class WorldUpdater {
 
     /**
      * Face-exposed culling: keep block only if at least one of the 6 neighbours is air or non-opaque.
-     * Logs are never culled and are always kept (so they are always rendered).
+     * Logs and leaves are never culled and are always kept (so they are always rendered).
      * Used for dimensions without sky (Nether, End) so terrain is not over-culled.
      * Section boundaries: neighbours outside section are treated as transparent (block is kept).
      * Level-0 layout: index i = (y<<8)|(z<<4)|x.
@@ -215,7 +209,7 @@ public class WorldUpdater {
         int nonAirCount = 0;
         for (int i = 0; i <= 0xFFF; i++) {
             long id = vdat[i];
-            if (mapper.isLog(id)) {
+            if (mapper.isLog(id) || mapper.isLeaves(id)) {
                 nonAirCount++;
                 continue;
             }

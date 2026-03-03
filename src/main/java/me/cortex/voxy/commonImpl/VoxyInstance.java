@@ -5,6 +5,7 @@ import me.cortex.voxy.common.config.section.SectionStorage;
 import me.cortex.voxy.common.thread.ServiceManager;
 import me.cortex.voxy.common.thread.UnifiedServiceThreadPool;
 import me.cortex.voxy.common.util.MemoryBuffer;
+import me.cortex.voxy.common.util.VectorSupport;
 import me.cortex.voxy.common.world.WorldEngine;
 import me.cortex.voxy.common.world.service.SectionSavingService;
 import me.cortex.voxy.common.world.service.VoxelIngestService;
@@ -216,6 +217,7 @@ public abstract class VoxyInstance {
         debug.add("MemoryBuffer, Count/Size (mb): " + MemoryBuffer.getCount() + "/" + (MemoryBuffer.getTotalSize()/1_000_000));
         //TODO: fixme, doing this.activeWorlds.values() is not thread safe
         debug.add("I/S/AWSC: " + this.ingestService.getTaskCount() + "/" + this.savingService.getTaskCount() + "/[" + this.activeWorlds.values().stream().map(a->""+a.getActiveSectionCount()).collect(Collectors.joining(", ")) + "]");//Active world section count
+        debug.add("Vector API: " + (VectorSupport.VECTOR_AVAILABLE ? "active" : "inactive"));
     }
 
     public void shutdown() {
