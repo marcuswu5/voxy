@@ -1,0 +1,16 @@
+flowchart TB
+  subgraph wave1 [Wave 1]
+    F01[feature-01 Sky-exposed plus config]
+  end
+  subgraph wave2 [Wave 2 - parallel]
+    F02[feature-02 Dimension-aware]
+    F04[feature-04 RLE storage]
+  end
+  subgraph wave3 [Wave 3]
+    F03[feature-03 LOD-level-aware]
+  end
+  wave1 --> wave2
+  wave2 --> wave3
+  F01 --> F02
+  F01 --> F04
+  F02 --> F03
