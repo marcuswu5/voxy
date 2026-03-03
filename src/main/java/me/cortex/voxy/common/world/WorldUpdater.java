@@ -169,38 +169,35 @@ public class WorldUpdater {
 
     /**
      * Sky-exposed culling: replace non-sky-exposed blocks with air in the level-0 section.
-     * Logs are never culled and are always kept (so they are always rendered).
-     * Level-0 layout: index i = (y<<8)|(z<<4)|x. "Above" = same x,z, higher y.
-     * Opaque = mapper.getBlockStateOpacity(id) > 0. Water is treated as surface (opaque for "above" check)
-     * so that water-at-top-of-column is kept and water surface is preserved (MVP edge case).
-     * Updates section.lvl0NonAirCount.
+     * A block at y is kept iff at least one of y+1 or y+2 is non-opaque (so the surface and the block below it are kept).
+     * If y+1 >= 16 the block is culled (nothing above). Implemented column-wise.
+     * Logs are never culled. Water is treated as surface (opaque for "above" check). Updates section.lvl0NonAirCount.
      */
     private static void cullToSkyExposed(VoxelizedSection section, Mapper mapper) {
         final long[] vdat = section.section;
         int nonAirCount = 0;
-        for (int i = 0; i <= 0xFFF; i++) {
-            long id = vdat[i];
-            if (mapper.isLog(id)) {
-                nonAirCount++;
-                continue;
-            }
-            int x = i & 0xF;
-            int z = (i >> 4) & 0xF;
-            int y = (i >> 8) & 0xF;
-            boolean skyExposed = true;
-            for (int yy = y + 1; yy < 16; yy++) {
-                int j = (yy << 8) | (z << 4) | x;
-                long aboveId = vdat[j];
-                // Treat water as surface block: blocks below water are not sky-exposed; water surface is kept
-                if (mapper.getBlockStateOpacity(aboveId) > 0 || mapper.isWater(aboveId)) {
-                    skyExposed = false;
-                    break;
+        final boolean[] nonOpaqueAbove = new boolean[16]; // per-column: true if block at y does not block sky
+        for (int z = 0; z < 16; z++) {
+            for (int x = 0; x < 16; x++) {
+                for (int y = 0; y < 16; y++) {
+                    int j = (y << 8) | (z << 4) | x;
+                    long id = vdat[j];
+                    nonOpaqueAbove[y] = mapper.getBlockStateOpacity(id) == 0 && !mapper.isWater(id);
                 }
-            }
-            if (!skyExposed) {
-                vdat[i] = Mapper.AIR;
-            } else if (!Mapper.isAir(id)) {
-                nonAirCount++;
+                for (int y = 0; y < 16; y++) {
+                    int i = (y << 8) | (z << 4) | x;
+                    long id = vdat[i];
+                    if (mapper.isLog(id)) {
+                        nonAirCount++;
+                        continue;
+                    }
+                    boolean skyExposed = (y + 1 < 16 && nonOpaqueAbove[y + 1]) || (y + 2 < 16 && nonOpaqueAbove[y + 2]);
+                    if (!skyExposed) {
+                        vdat[i] = Mapper.AIR;
+                    } else if (!Mapper.isAir(id)) {
+                        nonAirCount++;
+                    }
+                }
             }
         }
         section.lvl0NonAirCount = nonAirCount;
