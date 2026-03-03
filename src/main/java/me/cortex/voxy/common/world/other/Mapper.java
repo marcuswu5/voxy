@@ -16,6 +16,7 @@ import net.minecraft.util.datafix.fixes.References;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.LiquidBlock;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
@@ -268,6 +269,17 @@ public class Mapper {
 
     public boolean isWater(int blockId) {
         return this.blockId2stateEntry.get(blockId).state.getBlock() instanceof LiquidBlock;
+    }
+
+    /** True if the block is a log (BlockTags.LOGS). Used so logs are written as air in the LOD compression path. */
+    public boolean isLog(long mappingId) {
+        if (Mapper.isAir(mappingId)) return false;
+        return isLog(getBlockId(mappingId));
+    }
+
+    public boolean isLog(int blockId) {
+        if (blockId == 0) return false;
+        return this.blockId2stateEntry.get(blockId).state.is(BlockTags.LOGS);
     }
 
     public int getIdForBiome(Holder<Biome> biome) {

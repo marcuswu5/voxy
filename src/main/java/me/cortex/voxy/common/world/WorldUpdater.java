@@ -169,6 +169,7 @@ public class WorldUpdater {
 
     /**
      * Sky-exposed culling: replace non-sky-exposed blocks with air in the level-0 section.
+     * Logs are never culled and are always kept (so they are always rendered).
      * Level-0 layout: index i = (y<<8)|(z<<4)|x. "Above" = same x,z, higher y.
      * Opaque = mapper.getBlockStateOpacity(id) > 0. Water is treated as surface (opaque for "above" check)
      * so that water-at-top-of-column is kept and water surface is preserved (MVP edge case).
@@ -178,22 +179,27 @@ public class WorldUpdater {
         final long[] vdat = section.section;
         int nonAirCount = 0;
         for (int i = 0; i <= 0xFFF; i++) {
+            long id = vdat[i];
+            if (mapper.isLog(id)) {
+                nonAirCount++;
+                continue;
+            }
             int x = i & 0xF;
             int z = (i >> 4) & 0xF;
             int y = (i >> 8) & 0xF;
             boolean skyExposed = true;
             for (int yy = y + 1; yy < 16; yy++) {
                 int j = (yy << 8) | (z << 4) | x;
-                long id = vdat[j];
+                long aboveId = vdat[j];
                 // Treat water as surface block: blocks below water are not sky-exposed; water surface is kept
-                if (mapper.getBlockStateOpacity(id) > 0 || mapper.isWater(id)) {
+                if (mapper.getBlockStateOpacity(aboveId) > 0 || mapper.isWater(aboveId)) {
                     skyExposed = false;
                     break;
                 }
             }
             if (!skyExposed) {
                 vdat[i] = Mapper.AIR;
-            } else if (!Mapper.isAir(vdat[i])) {
+            } else if (!Mapper.isAir(id)) {
                 nonAirCount++;
             }
         }
@@ -202,6 +208,7 @@ public class WorldUpdater {
 
     /**
      * Face-exposed culling: keep block only if at least one of the 6 neighbours is air or non-opaque.
+     * Logs are never culled and are always kept (so they are always rendered).
      * Used for dimensions without sky (Nether, End) so terrain is not over-culled.
      * Section boundaries: neighbours outside section are treated as transparent (block is kept).
      * Level-0 layout: index i = (y<<8)|(z<<4)|x.
@@ -210,6 +217,11 @@ public class WorldUpdater {
         final long[] vdat = section.section;
         int nonAirCount = 0;
         for (int i = 0; i <= 0xFFF; i++) {
+            long id = vdat[i];
+            if (mapper.isLog(id)) {
+                nonAirCount++;
+                continue;
+            }
             int x = i & 0xF;
             int z = (i >> 4) & 0xF;
             int y = (i >> 8) & 0xF;
@@ -232,7 +244,7 @@ public class WorldUpdater {
             }
             if (!faceExposed) {
                 vdat[i] = Mapper.AIR;
-            } else if (!Mapper.isAir(vdat[i])) {
+            } else if (!Mapper.isAir(id)) {
                 nonAirCount++;
             }
         }
