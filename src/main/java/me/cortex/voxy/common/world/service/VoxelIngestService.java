@@ -8,6 +8,7 @@ import me.cortex.voxy.common.voxelization.VoxelizedSection;
 import me.cortex.voxy.common.voxelization.WorldConversionFactory;
 import me.cortex.voxy.common.world.WorldEngine;
 import me.cortex.voxy.common.world.WorldUpdater;
+import me.cortex.voxy.common.world.other.Mapper;
 import me.cortex.voxy.commonImpl.VoxyCommon;
 import me.cortex.voxy.commonImpl.WorldIdentifier;
 import net.minecraft.core.SectionPos;
@@ -15,6 +16,7 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.lighting.LayerLightSectionStorage;
 import org.jetbrains.annotations.NotNull;
 
@@ -23,7 +25,8 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 public class VoxelIngestService {
     private static final ThreadLocal<VoxelizedSection> SECTION_CACHE = ThreadLocal.withInitial(VoxelizedSection::createEmpty);
     private final Service service;
-    private record IngestSection(int cx, int cy, int cz, WorldEngine world, LevelChunkSection section, DataLayer blockLight, DataLayer skyLight){}
+    /** chunkMinY: -1 if not applicable (no bottom cull), else min block Y from heightmap for this chunk. */
+    private record IngestSection(int cx, int cy, int cz, int chunkMinY, WorldEngine world, LevelChunkSection section, DataLayer blockLight, DataLayer skyLight){}
     private final ConcurrentLinkedDeque<IngestSection> ingestQueue = new ConcurrentLinkedDeque<>();
 
     public VoxelIngestService(ServiceManager pool) {
@@ -47,6 +50,7 @@ public class VoxelIngestService {
                     section.getBiomes(),
                     getLightingSupplier(task)
             );
+            cullBelowHeightmapInSection(csec, task.cy, task.chunkMinY);
             WorldConversionFactory.mipSection(csec, task.world.getMapper());
             WorldUpdater.insertUpdate(task.world, csec);
         }
@@ -83,6 +87,26 @@ public class VoxelIngestService {
         return supplier;
     }
 
+    /** Zeros blocks below the chunk heightmap min in the section that contains it, and updates lvl0NonAirCount. Cull starts two blocks lower (keep block at chunkMinY-2 and above). */
+    private static void cullBelowHeightmapInSection(VoxelizedSection section, int sectionY, int chunkMinY) {
+        if (chunkMinY < 0) return;
+        int keepFromBlockY = chunkMinY - 2;
+        if ((keepFromBlockY >> 4) != sectionY) return;
+        int localMinY = keepFromBlockY & 15;
+        if (localMinY <= 0) return;
+        final long[] vdat = section.section;
+        int nonAirCount = 0;
+        for (int i = 0; i <= 0xFFF; i++) {
+            int y = (i >> 8) & 0xF;
+            if (y < localMinY) {
+                vdat[i] = Mapper.AIR;
+            } else if (!Mapper.isAir(vdat[i])) {
+                nonAirCount++;
+            }
+        }
+        section.lvl0NonAirCount = nonAirCount;
+    }
+
     private static boolean shouldIngestSection(LevelChunkSection section, int cx, int cy, int cz) {
         return true;
     }
@@ -97,6 +121,13 @@ public class VoxelIngestService {
 
         engine.markActive();
 
+        int minSectionY = chunk.getMinSectionY();
+        int chunkMinYForSections = -1;
+        if (engine.instanceIn != null && engine.instanceIn.isHeightmapCullingEnabled()) {
+            chunkMinYForSections = HeightmapUtil.getChunkMinY(chunk, Heightmap.Types.MOTION_BLOCKING);
+            minSectionY = (chunkMinYForSections - 2) >> 4;
+        }
+
         var lightingProvider = chunk.getLevel().getLightEngine();
         boolean gotLighting = false;
 
@@ -104,7 +135,7 @@ public class VoxelIngestService {
         boolean allEmpty = true;
         for (var section : chunk.getSections()) {
             i++;
-            if (section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
+            if (i < minSectionY || section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
             allEmpty&=section.hasOnlyAir();
             //if (section.isEmpty()) continue;
             var pos = SectionPos.of(chunk.getPos(), i);
@@ -118,9 +149,9 @@ public class VoxelIngestService {
             i = chunk.getMinSectionY() - 1;
             for (var section : chunk.getSections()) {
                 i++;
-                if (section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
+                if (i < minSectionY || section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
                 engine.markActive();
-                this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, section, null, null));
+                this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, chunkMinYForSections, engine, section, null, null));
                 try {
                     this.service.execute();
                 } catch (Exception e) {
@@ -141,7 +172,7 @@ public class VoxelIngestService {
         i = chunk.getMinSectionY() - 1;
         for (var section : chunk.getSections()) {
             i++;
-            if (section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
+            if (i < minSectionY || section == null || !shouldIngestSection(section, chunk.getPos().x, i, chunk.getPos().z)) continue;
             //if (section.isEmpty()) continue;
             var pos = SectionPos.of(chunk.getPos(), i);
 
@@ -160,7 +191,7 @@ public class VoxelIngestService {
             //    continue;
             //}
             engine.markActive();
-            this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, engine, section, bl, sl));//TODO: fixme, this is technically not safe todo on the chunk load ingest, we need to copy the section data so it cant be modified while being read
+            this.ingestQueue.add(new IngestSection(chunk.getPos().x, i, chunk.getPos().z, chunkMinYForSections, engine, section, bl, sl));//TODO: fixme, this is technically not safe todo on the chunk load ingest, we need to copy the section data so it cant be modified while being read
             try {
                 this.service.execute();
             } catch (Exception e) {
@@ -196,7 +227,7 @@ public class VoxelIngestService {
     }
 
     private boolean rawIngest0(WorldEngine engine, LevelChunkSection section, int x, int y, int z, DataLayer bl, DataLayer sl) {
-        this.ingestQueue.add(new IngestSection(x, y, z, engine, section, bl, sl));
+        this.ingestQueue.add(new IngestSection(x, y, z, -1, engine, section, bl, sl));
         try {
             this.service.execute();
             return true;

@@ -35,6 +35,8 @@ public class VoxyConfig {
     public boolean lodCompression = false;
     /** When true, new saves use RLE for section block data. Existing RLE sections remain readable when disabled. */
     public boolean useRleForLodStorage = true;
+    /** When true, sections entirely below the chunk heightmap minimum are not ingested (saves space and time). */
+    public boolean heightmapCulling = true;
 
     private static VoxyConfig loadOrCreate() {
         if (VoxyCommon.isAvailable()) {

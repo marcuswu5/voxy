@@ -23,11 +23,12 @@ public class WorldUpdater {
 
         if (!into.isLive) throw new IllegalStateException("World is not live");
         if (into.isLodCompressionEnabled()) {
-            if (into.hasSky()) {
-                cullToSkyExposed(section, into.getMapper());
-            } else {
-                cullToFaceExposed(section, into.getMapper());
-            }
+            // if (into.hasSky()) {
+            //     cullToSkyExposed(section, into.getMapper());
+            // } else {
+            //     cullToFaceExposed(section, into.getMapper());
+            // }
+            cullToFaceExposed(section, into.getMapper());
             WorldConversionFactory.mipSection(section, into.getMapper());
         }
         boolean shouldCheckEmptiness = false;
@@ -216,23 +217,14 @@ public class WorldUpdater {
             int x = i & 0xF;
             int z = (i >> 4) & 0xF;
             int y = (i >> 8) & 0xF;
-            boolean faceExposed = false;
-            // +x, -x, +y, -y, +z, -z
-            int[][] deltas = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}};
-            for (int[] d : deltas) {
-                int nx = x + d[0], ny = y + d[1], nz = z + d[2];
-                if (nx < 0 || nx > 15 || ny < 0 || ny > 15 || nz < 0 || nz > 15) {
-                    // Out-of-section: treat as transparent so we keep the block (per existing conventions)
-                    faceExposed = true;
-                    break;
-                }
-                int j = (ny << 8) | (nz << 4) | nx;
-                long nid = vdat[j];
-                if (Mapper.isAir(nid) || mapper.getBlockStateOpacity(nid) == 0) {
-                    faceExposed = true;
-                    break;
-                }
-            }
+            // Index layout i = (y<<8)|(z<<4)|x so +x=i+1, -x=i-1, +y=i+256, -y=i-256, +z=i+16, -z=i-16
+            boolean faceExposed =
+                (x == 15 || mapper.getBlockStateOpacity(vdat[i + 1]) == 0)   || // +X
+                (x == 0  || mapper.getBlockStateOpacity(vdat[i - 1]) == 0)   || // -X
+                (y == 15 || mapper.getBlockStateOpacity(vdat[i + 256]) == 0)  || // +Y
+                (y == 0  || mapper.getBlockStateOpacity(vdat[i - 256]) == 0)  || // -Y
+                (z == 15 || mapper.getBlockStateOpacity(vdat[i + 16]) == 0)   || // +Z
+                (z == 0  || mapper.getBlockStateOpacity(vdat[i - 16]) == 0);     // -Z
             if (!faceExposed) {
                 vdat[i] = Mapper.AIR;
             } else if (!Mapper.isAir(id)) {

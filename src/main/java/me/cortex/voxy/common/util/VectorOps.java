@@ -1,5 +1,6 @@
 package me.cortex.voxy.common.util;
 
+import jdk.incubator.vector.IntVector;
 import jdk.incubator.vector.LongVector;
 import jdk.incubator.vector.VectorOperators;
 import jdk.incubator.vector.VectorSpecies;
@@ -11,6 +12,9 @@ public final class VectorOps {
 
     private static final VectorSpecies<Long> SPECIES = LongVector.SPECIES_256;
     private static final int LANE_COUNT = SPECIES.length();
+
+    private static final VectorSpecies<Integer> INT_SPECIES = IntVector.SPECIES_256;
+    private static final int INT_LANE_COUNT = INT_SPECIES.length();
 
     /**
      * Mask for Mapper.isAir(id): (id & (((1L<<20)-1)<<27)) == 0. Must match Mapper.isAir.
@@ -54,5 +58,22 @@ public final class VectorOps {
      */
     public static int laneCount() {
         return LANE_COUNT;
+    }
+
+    /**
+     * Returns the minimum value in arr[from..to). Uses IntVector when available, otherwise scalar.
+     */
+    public static int minReduction(int[] arr, int from, int to) {
+        if (from >= to) return Integer.MAX_VALUE;
+        int min = Integer.MAX_VALUE;
+        int i = from;
+        for (; i + INT_LANE_COUNT <= to; i += INT_LANE_COUNT) {
+            IntVector vec = IntVector.fromArray(INT_SPECIES, arr, i);
+            min = Math.min(min, vec.reduceLanes(VectorOperators.MIN));
+        }
+        for (; i < to; i++) {
+            min = Math.min(min, arr[i]);
+        }
+        return min;
     }
 }

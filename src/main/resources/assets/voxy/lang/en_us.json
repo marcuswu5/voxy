@@ -16,6 +16,9 @@
   "voxy.config.general.ingest": "Chunk Ingest",
   "voxy.config.general.ingest.tooltip": "Enables or disables voxies ability to convert new chunks into LoDs",
 
+  "voxy.config.general.heightmap_culling": "Heightmap culling",
+  "voxy.config.general.heightmap_culling.tooltip": "Skip loading sections below the lowest block in each chunk (saves space and time)",
+
   "voxy.config.general.rendering": "Voxy Rendering",
   "voxy.config.general.rendering.tooltip": "Enables or disables voxy rendering",
 

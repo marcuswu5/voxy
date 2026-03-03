@@ -70,4 +70,24 @@ public final class VectorSupport {
             arr[i] = 0L;
         }
     }
+
+    /**
+     * Returns the minimum value in arr[from..to). Uses IntVector when available, otherwise scalar.
+     */
+    public static int minReduction(int[] arr, int from, int to) {
+        if (from >= to) return Integer.MAX_VALUE;
+        if (VECTOR_AVAILABLE) {
+            try {
+                Class<?> ops = Class.forName("me.cortex.voxy.common.util.VectorOps");
+                return (int) ops.getMethod("minReduction", int[].class, int.class, int.class).invoke(null, arr, from, to);
+            } catch (Throwable t) {
+                // fallback to scalar
+            }
+        }
+        int min = Integer.MAX_VALUE;
+        for (int i = from; i < to; i++) {
+            min = Math.min(min, arr[i]);
+        }
+        return min;
+    }
 }

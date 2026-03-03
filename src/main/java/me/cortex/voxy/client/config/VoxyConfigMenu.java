@@ -74,7 +74,11 @@ public class VoxyConfigMenu implements ConfigEntryPoint {
                                 new BoolOption(
                                         "voxy:ingest_enabled",
                                         Component.translatable("voxy.config.general.ingest"),
-                                        ()->CFG.ingestEnabled, v->CFG.ingestEnabled=v)
+                                        ()->CFG.ingestEnabled, v->CFG.ingestEnabled=v),
+                                new BoolOption(
+                                        "voxy:heightmap_culling",
+                                        Component.translatable("voxy.config.general.heightmap_culling"),
+                                        ()->CFG.heightmapCulling, v->CFG.heightmapCulling=v)
                         )
                 ).setEnabler("voxy:enabled"),
                 new Page(Component.translatable("voxy.config.rendering"),

@@ -85,6 +85,11 @@ public class VoxyClientInstance extends VoxyInstance {
         return (!this.noIngestOverride) && VoxyConfig.CONFIG.ingestEnabled;
     }
 
+    @Override
+    public boolean isHeightmapCullingEnabled() {
+        return VoxyConfig.CONFIG.heightmapCulling;
+    }
+
     private static class Config {
         public int version = 1;
         public SectionStorageConfig sectionStorageConfig;

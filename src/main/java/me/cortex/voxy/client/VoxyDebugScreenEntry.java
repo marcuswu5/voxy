@@ -2,6 +2,7 @@ package me.cortex.voxy.client;
 
 import me.cortex.voxy.client.core.IGetVoxyRenderSystem;
 import me.cortex.voxy.client.core.VoxyRenderSystem;
+import me.cortex.voxy.common.util.VectorSupport;
 import me.cortex.voxy.commonImpl.VoxyCommon;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -35,6 +36,14 @@ public class VoxyDebugScreenEntry implements DebugScreenEntry {
         List<String> instanceLines = new ArrayList<>();
         instance.addDebug(instanceLines);
         lines.addToGroup(Identifier.fromNamespaceAndPath("voxy", "instance_debug"), instanceLines);
+
+        List<String> vectorLines = new ArrayList<>();
+        if (VectorSupport.VECTOR_AVAILABLE) {
+            vectorLines.add(ChatFormatting.GREEN + "Vector API: active");
+        } else {
+            vectorLines.add(ChatFormatting.GRAY + "Vector API: inactive");
+        }
+        lines.addToGroup(Identifier.fromNamespaceAndPath("voxy", "vector_api"), vectorLines);
 
         if (vrs != null) {
             List<String> renderLines = new ArrayList<>();
